@@ -198,7 +198,35 @@ def run_json_mode():
     for key, case in data.get("patterns", {}).items():
         reason = analyze_case(key, case, filters)
         results.append((key, reason))
+
+    run_performance()
     return results
+
+
+PERF_SIZES = [3, 5, 13, 25]
+
+def make_cross(n):
+    """n×n 십자가 배열(가운데 줄과 가운데 칸이 1)을 만든다."""
+    mid = n // 2
+    matrix = []
+    for i in range(n):
+        row = []
+        for j in range(n):
+            if i == mid or j == mid:
+                row.append(1.0)
+            else:
+                row.append(0.0)
+        matrix.append(row)
+    return matrix
+
+def run_performance():
+    """크기별로 mac 평균 시간을 재고 표로 출력한다."""
+    results = []
+    for n in PERF_SIZES:
+        matrix = make_cross(n)
+        results.append((n, measure_ms(matrix, matrix)))
+    section(f"[3] 성능 분석 (평균/{REPEAT}회)")
+    print_performance(results)
 
 def main():
     """모드를 고르고, 고른 모드를 실행한다."""
