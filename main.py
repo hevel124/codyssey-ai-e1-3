@@ -1,5 +1,6 @@
 # Mini NPU Simulator
 
+import json
 import time
 
 def mac(pattern, filt):
@@ -101,6 +102,104 @@ def run_user_mode():
     section(f"[4] 성능 분석 (평균/{REPEAT}회)")
     print_performance([(3, ms)])
 
+DATA_FILE = "data.json"
+
+
+def normalize_label(value):
+    """'+'·'cross'는 Cross로, 'x'는 X로 바꾼다. 그 밖의 값은 None을 돌려준다."""
+    text = str(value).strip().lower()
+    if text in ("+", "cross"):
+        return "Cross"
+    if text == "x":
+        return "X"
+    return None
+
+def is_square(matrix, n):
+    """matrix가 n줄이고, 줄마다 n칸인 2차원 리스트인지 확인한다."""
+    # isinstance(값, 타입) -> 값이 타입인지 검사하는 내장 함수
+    if not isinstance(matrix, list) or len(matrix) != n:
+        return False
+    for row in matrix:
+        if not isinstance(row, list) or len(row) != n:
+            return False
+    return True
+
+def load_filters(data):
+    """filters의 size_N마다 {'Cross': 배열, 'X': 배열}을 만든다."""
+    filters = {}
+    for size_key, pair in data.get("filters", {}).items():
+        if not isinstance(pair, dict):
+            print(f"✗ {size_key:<7} 필터 형식 오류 (건너뜀)")
+            continue
+        filters[size_key] = {}
+        for key, matrix in pair.items():
+            label = normalize_label(key)
+            if label is not None:
+                filters[size_key][label] = matrix
+        labels = ", ".join(filters[size_key])
+        print(f"✓ {size_key:<7} 필터 로드 완료 ({labels})")
+    return filters
+
+def check_case(key, case, filters):
+    """패턴 1개를 검사한다. 문제가 있으면 원인 문구를, 없으면 빈 문자열을 돌려준다."""
+    parts = key.split("_")
+    if len(parts) != 3 or parts[0] != "size" or not parts[1].isdigit():
+        return f"키 형식 오류: {key}"
+    n = int(parts[1])
+    size_key = f"size_{n}"
+    if size_key not in filters:
+        return f"{size_key} 필터 없음"
+    if not isinstance(case, dict) or "input" not in case or "expected" not in case:
+        return "input 또는 expected 없음"
+    if normalize_label(case["expected"]) is None:
+        return f"알 수 없는 expected 라벨: {case['expected']}"
+    if not is_square(case["input"], n):
+        return f"크기 불일치: 패턴이 {n}×{n} 크기가 아님"
+    for label in ("Cross", "X"):
+        if not is_square(filters[size_key].get(label), n):
+            return f"크기 불일치: {label} 필터가 {n}×{n} 크기가 아님"
+    return ""
+
+def analyze_case(key, case, filters):
+    """패턴 1개의 점수·판정·PASS/FAIL을 출력한다. 실패 사유(PASS면 빈 문자열)를 돌려준다."""
+    print(f"--- {key} ---")
+    problem = check_case(key, case, filters)
+    if problem:
+        print(f"FAIL ({problem})")
+        return problem
+    size_filters = filters[f"size_{key.split('_')[1]}"]
+    score_cross = mac(case["input"], size_filters["Cross"])
+    score_x = mac(case["input"], size_filters["X"])
+    result = judge(score_cross, score_x, "Cross", "X")
+    expected = normalize_label(case["expected"])
+    print(f"Cross 점수: {score_cross}")
+    print(f"X 점수: {score_x}")
+    if result == expected:
+        print(f"판정: {result} | expected: {expected} | PASS")
+        return ""
+    reason = "동점 규칙" if result == "UNDECIDED" else "판정 불일치"
+    print(f"판정: {result} | expected: {expected} | FAIL ({reason})")
+    return reason
+
+def run_json_mode():
+    """모드 2: data.json의 패턴마다 Cross·X 점수를 구해 판정하고 PASS/FAIL을 출력한다."""
+    try:
+        with open(DATA_FILE, encoding="utf-8") as file:
+            data = json.load(file)
+    except (OSError, ValueError) as error:
+        print(f"{DATA_FILE}을 읽을 수 없습니다: {error}")
+        return []
+
+    section("[1] 필터 로드")
+    filters = load_filters(data)
+
+    section("[2] 패턴 분석 (라벨 정규화 적용)")
+    results = []
+    for key, case in data.get("patterns", {}).items():
+        reason = analyze_case(key, case, filters)
+        results.append((key, reason))
+    return results
+
 def main():
     """모드를 고르고, 고른 모드를 실행한다."""
     print("=== Mini NPU Simulator ===")
@@ -114,7 +213,7 @@ def main():
             run_user_mode()
             break
         if choice == "2":
-            print("data.json 분석 모드는 준비 중입니다.")
+            run_json_mode()
             break
         print("1 또는 2를 입력하세요.")
 
