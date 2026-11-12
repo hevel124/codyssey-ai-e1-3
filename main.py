@@ -200,6 +200,7 @@ def run_json_mode():
         results.append((key, reason))
 
     run_performance()
+    print_summary(results)
     return results
 
 
@@ -227,6 +228,23 @@ def run_performance():
         results.append((n, measure_ms(matrix, matrix)))
     section(f"[3] 성능 분석 (평균/{REPEAT}회)")
     print_performance(results)
+
+def print_summary(results):
+    """모드 2 결과 목록으로 총/통과/실패 수와 실패 케이스를 출력한다."""
+    failed = []
+    for key, reason in results:
+        if reason:
+            failed.append((key, reason))
+    section("[4] 결과 요약")
+    print(f"총 테스트: {len(results)}개")
+    print(f"통과: {len(results) - len(failed)}개")
+    print(f"실패: {len(failed)}개")
+    if failed:
+        print()
+        print("실패 케이스:")
+        for key, reason in failed:
+            print(f"- {key}: FAIL ({reason})")
+
 
 def main():
     """모드를 고르고, 고른 모드를 실행한다."""
