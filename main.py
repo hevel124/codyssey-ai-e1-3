@@ -124,6 +124,14 @@ def is_square(matrix, n):
             return False
     return True
 
+def is_number_matrix(matrix):
+    """matrix의 모든 칸이 숫자(int 또는 float)인지 확인한다."""
+    for row in matrix:
+        for value in row:
+            if not isinstance(value, (int, float)):
+                return False
+    return True
+
 def load_filters(data):
     """filters의 size_N마다 {'Cross': 배열, 'X': 배열}을 만든다."""
     filters = {}
@@ -158,6 +166,11 @@ def check_case(key, case, filters):
     for label in ("Cross", "X"):
         if not is_square(filters[size_key].get(label), n):
             return f"크기 불일치: {label} 필터가 {n}×{n} 크기가 아님"
+    if not is_number_matrix(case["input"]):
+        return "숫자가 아닌 값: 패턴"
+    for label in ("Cross", "X"):
+        if not is_number_matrix(filters[size_key][label]):
+            return f"숫자가 아닌 값: {label} 필터"
     return ""
 
 def analyze_case(key, case, filters):
@@ -189,6 +202,13 @@ def run_json_mode():
     except (OSError, ValueError) as error:
         print(f"{DATA_FILE}을 읽을 수 없습니다: {error}")
         return []
+    if not isinstance(data, dict):
+        print(f"{DATA_FILE} 구조 오류: 최상위가 객체({{...}})가 아닙니다.")
+        return []
+    for part in ("filters", "patterns"):
+        if not isinstance(data.get(part, {}), dict):
+            print(f"{DATA_FILE} 구조 오류: {part}가 객체({{...}})가 아닙니다.")
+            return []
 
     section("[1] 필터 로드")
     filters = load_filters(data)
