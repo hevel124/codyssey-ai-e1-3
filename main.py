@@ -12,6 +12,21 @@ def mac(pattern, filt):
             total += pattern[i][j] * filt[i][j]
     return total
 
+def flatten(matrix):
+    """N×N 2차원 리스트를 길이 N²의 1차원 리스트로 바꾼다. (줄 순서대로 이어 붙임)"""
+    flat = []
+    for row in matrix:
+        for value in row:
+            flat.append(value)
+    return flat
+
+def mac_flat(pattern, filt):
+    """1차원 리스트로 MAC을 계산한다. 결과는 mac과 같고, 반복문이 한 겹이다."""
+    total = 0.0
+    for k in range(len(pattern)):
+        total += pattern[k] * filt[k]
+    return total
+
 # 1e-9는 1 × 10⁻⁹ = 0.000000001
 EPSILON = 1e-9
 
@@ -25,11 +40,11 @@ def judge(score_a, score_b, label_a, label_b):
 
 REPEAT = 10
 
-def measure_ms(pattern, filt):
-    """mac을 REPEAT번 실행한 평균 시간(ms)을 돌려준다."""
+def measure_ms(pattern, filt, func=mac):
+    """func(기본 mac)를 REPEAT번 실행한 평균 시간(ms)을 돌려준다."""
     start = time.perf_counter()
     for _ in range(REPEAT):
-        mac(pattern, filt)
+        func(pattern, filt)
     return (time.perf_counter() - start) / REPEAT * 1000
 
 def section(title):
@@ -241,13 +256,29 @@ def make_cross(n):
     return matrix
 
 def run_performance():
-    """크기별로 mac 평균 시간을 재고 표로 출력한다."""
+    """크기별로 mac(2차원)·mac_flat(1차원) 평균 시간을 재고 표 2개로 출력한다."""
     results = []
+    compare = []
     for n in PERF_SIZES:
         matrix = make_cross(n)
-        results.append((n, measure_ms(matrix, matrix)))
+        flat = flatten(matrix)
+        ms_2d = measure_ms(matrix, matrix)
+        ms_1d = measure_ms(flat, flat, mac_flat)
+        results.append((n, ms_2d))
+        compare.append((n, ms_2d, ms_1d))
     section(f"[3] 성능 분석 (평균/{REPEAT}회)")
     print_performance(results)
+    print_compare(compare)
+
+def print_compare(compare):
+    """(크기 n, 2차원 ms, 1차원 ms) 목록으로 최적화 전/후 비교 표를 출력한다."""
+    print()
+    print(f"[최적화 비교] 2차원 mac vs 1차원 mac_flat (같은 입력, 평균/{REPEAT}회)")
+    print("크기         2차원(ms)    1차원(ms)   1차원/2차원")
+    print("-" * 48)
+    for n, ms_2d, ms_1d in compare:
+        size = f"{n}×{n}"
+        print(f"{size:<8}{ms_2d:>12.4f}{ms_1d:>13.4f}{ms_1d / ms_2d:>13.2f}")
 
 def print_summary(results):
     """모드 2 결과 목록으로 총/통과/실패 수와 실패 케이스를 출력한다."""
