@@ -26,6 +26,13 @@ $ python3 main.py
 - 필터 키(`cross`, `x`)와 패턴의 `expected`(`+`, `x`)를 모두 이 함수로 바꾼 뒤 출력·PASS/FAIL 비교
 - 표준 라벨로 바꿀 수 없는 `expected`는 그 케이스만 `FAIL (알 수 없는 expected 라벨: …)`
 
+**새 라벨 추가 절차** (예: 세 번째 모양 `T`)
+1. 정규화: `normalize_label`에 새 표기 → 새 표준 라벨 변환 줄 추가. `load_filters`는 이 함수가 아는 키를 모두 읽으므로 `data.json`의 `filters.size_N`에 새 필터 키만 넣으면 로드됨
+2. 검사: `check_case`의 크기·숫자 검사 라벨 목록 `("Cross", "X")`에 새 라벨 추가
+3. 판정: `analyze_case`에서 라벨마다 MAC 점수를 구하고, `judge`를 두 점수 비교에서 "최고 점수와 2등 점수 차이가 `EPSILON`보다 작으면 `UNDECIDED`, 아니면 최고 점수 라벨"로 변경
+4. 출력: 라벨마다 `<라벨> 점수:` 줄 출력. PASS/FAIL은 판정과 정규화한 `expected` 비교 그대로
+5. 테스트: 새 라벨 패턴·필터를 넣은 `data.json` 복사본으로 모드 2 실행 → 새 케이스 판정·PASS/FAIL과 결과 요약 총합 확인, 기존 6개 결과(통과 3 · 실패 3)가 그대로인지 확인
+
 **MAC 연산 구현 개요**
 - `mac(pattern, filt)`: 이중 `for` 반복문으로 n×n 칸을 한 번씩 돌며 같은 위치 값끼리 곱해 `total`에 누적, 점수(float) 반환
 - `flatten(matrix)` · `mac_flat(pattern, filt)` (보너스 B1): 2차원 리스트를 줄 순서대로 이어 붙여 길이 N²의 1차원 리스트로 바꾸고, 한 겹 반복문으로 `pattern[k] * filt[k]`를 누적. 성능 분석에서 `mac`과 비교
