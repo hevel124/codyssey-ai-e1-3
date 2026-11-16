@@ -320,22 +320,16 @@ def run_performance():
 PRINT_LIMIT = 25
 
 def run_generator_mode():
-    """모드 3: 크기 N을 입력받아 N×N Cross·X 패턴을 생성하고, 생성한 패턴으로 성능 분석을 출력한다."""
+    """모드 3: 크기 N을 입력받아 N×N Cross·X 패턴을 생성해 출력한다."""
     n = read_size()
     patterns = generate_patterns(n)
-    cross = patterns["Cross"]
-    x = patterns["X"]
-    section(f"[1] 패턴 생성 ({n}×{n})")
+    section(f"패턴 생성 ({n}×{n})")
     if n <= PRINT_LIMIT:
-        print_matrix("Cross 패턴", cross)
+        print_matrix("Cross 패턴", patterns["Cross"])
         print()
-        print_matrix("X 패턴", x)
+        print_matrix("X 패턴", patterns["X"])
     else:
         print(f"Cross·X 패턴 생성 완료 (N이 {PRINT_LIMIT}보다 커서 배열 출력 생략)")
-
-    section(f"[2] 성능 분석 (평균/{REPEAT}회)")
-    print("입력: 생성한 Cross 패턴 × X 패턴")
-    print_performance([(n, measure_ms(cross, x))])
 
 def print_compare(compare):
     """(크기 n, 2차원 ms, 1차원 ms) 목록으로 최적화 전/후 비교 표를 출력한다."""
