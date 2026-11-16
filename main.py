@@ -88,18 +88,58 @@ def print_performance(results):
         size = f"{n}×{n}"
         print(f"{size:<8}{ms:>14.4f}{n * n:>12}") 
 
+def read_choice(prompt, choices):
+    """choices 중 하나가 입력될 때까지 다시 묻고, 입력값을 돌려준다."""
+    while True:
+        value = input(prompt).strip()
+        if value in choices:
+            return value
+        print(f"{' 또는 '.join(choices)}를 입력하세요.")
+
+def read_size():
+    """패턴 생성기 크기 N(3 이상의 홀수)을 입력받는다."""
+    while True:
+        text = input("크기 N (3 이상의 홀수): ").strip()
+        if text.isdigit() and int(text) >= 3 and int(text) % 2 == 1:
+            return int(text)
+        print("크기 오류: 3 이상의 홀수를 입력하세요. (가운데 칸이 있어야 십자가·X를 만들 수 있음)")
+
+def read_shape():
+    """생성할 패턴 모양을 입력받아 표준 라벨(Cross 또는 X)로 돌려준다."""
+    while True:
+        label = normalize_label(input("패턴 모양 (cross 또는 x): "))
+        if label is not None:
+            return label
+        print("모양 오류: cross(+) 또는 x를 입력하세요.")
+
 def run_user_mode():
-    """모드 1: 3×3 필터 A, B와 패턴을 입력받아 판정하고 성능을 출력한다."""
+    """모드 1: 필터 A, B와 패턴을 직접 입력(3×3)하거나 생성(N×N)해 판정하고 성능을 출력한다."""
+    method = read_choice("입력 방식 (1: 직접 입력 3×3, 2: 패턴 생성기 N×N): ", ["1", "2"])
     section("[1] 필터 입력")
-    filter_a = read_matrix("필터 A", 3)
-    print_matrix("필터 A", filter_a)
-    print()
-    filter_b = read_matrix("필터 B", 3)
-    print_matrix("필터 B", filter_b)
+    if method == "2":
+        n = read_size()
+        filter_a = make_cross(n)
+        filter_b = make_x(n)
+        print(f"패턴 생성기: 필터 A = Cross, 필터 B = X ({n}×{n})")
+        print_matrix("필터 A", filter_a)
+        print()
+        print_matrix("필터 B", filter_b)
+    else:
+        n = 3
+        filter_a = read_matrix("필터 A", n)
+        print_matrix("필터 A", filter_a)
+        print()
+        filter_b = read_matrix("필터 B", n)
+        print_matrix("필터 B", filter_b)
 
     section("[2] 패턴 입력")
-    pattern = read_matrix("패턴", 3)
-    print_matrix("패턴", pattern)   
+    if method == "2":
+        shape = read_shape()
+        pattern = make_cross(n) if shape == "Cross" else make_x(n)
+        print(f"패턴 생성기: {shape} ({n}×{n})")
+    else:
+        pattern = read_matrix("패턴", n)
+    print_matrix("패턴", pattern)
     
     section("[3] MAC 결과")
     score_a = mac(pattern, filter_a)
@@ -115,7 +155,7 @@ def run_user_mode():
         print(f"판정: {result}")
 
     section(f"[4] 성능 분석 (평균/{REPEAT}회)")
-    print_performance([(3, ms)])
+    print_performance([(n, ms)])
 
 DATA_FILE = "data.json"
 
@@ -249,6 +289,19 @@ def make_cross(n):
         row = []
         for j in range(n):
             if i == mid or j == mid:
+                row.append(1.0)
+            else:
+                row.append(0.0)
+        matrix.append(row)
+    return matrix
+
+def make_x(n):
+    """n×n X 배열(두 대각선 칸이 1)을 만든다."""
+    matrix = []
+    for i in range(n):
+        row = []
+        for j in range(n):
+            if i == j or i + j == n - 1:
                 row.append(1.0)
             else:
                 row.append(0.0)
