@@ -122,13 +122,18 @@ def run_user_mode():
     print_matrix("필터 B", filter_b)
 
     section("[2] 패턴 입력")
-    method = read_choice("패턴 입력 방식 (1: 직접 입력, 2: 패턴 생성기): ", ["1", "2"])
-    if method == "2":
-        shape = read_shape()
-        pattern = generate_patterns(3)[shape]
-        print(f"패턴 생성기: {shape} (3×3)")
-    else:
-        pattern = read_matrix("패턴", 3)
+    while True:
+        method = read_choice("패턴 입력 방식 (1: 직접 입력, 2: 생성된 패턴 사용): ", ["1", "2"])
+        if method == "1":
+            pattern = read_matrix("패턴", 3)
+            break
+        generated = load_generated()
+        if generated is not None and generated["size"] == 3:
+            shape = read_shape()
+            pattern = generated[shape]
+            print(f"{GENERATED_FILE}의 {shape} 패턴 사용 (3×3)")
+            break
+        print(f"사용할 3×3 생성 패턴이 없습니다. 모드 3에서 N=3으로 생성하세요. ({GENERATED_FILE})")
     print_matrix("패턴", pattern)
     
     section("[3] MAC 결과")
@@ -299,15 +304,43 @@ def make_x(n):
     return matrix
 
 def generate_patterns(n):
-    """크기 n의 Cross·X 패턴을 생성해 표준 라벨을 키로 돌려준다. 모드 1·모드 3·성능 분석이 함께 쓴다."""
+    """크기 n의 Cross·X 패턴을 생성해 표준 라벨을 키로 돌려준다."""
     return {"Cross": make_cross(n), "X": make_x(n)}
 
+GENERATED_FILE = "generated.json"
+
+def save_generated(n, patterns):
+    """생성한 패턴을 {"size": n, "Cross": 배열, "X": 배열} 형태로 generated.json에 저장한다."""
+    with open(GENERATED_FILE, "w", encoding="utf-8") as file:
+        json.dump({"size": n, "Cross": patterns["Cross"], "X": patterns["X"]}, file)
+
+def load_generated():
+    """generated.json을 읽어 돌려준다. 파일이 없거나 형식이 맞지 않으면 None을 돌려준다."""
+    try:
+        with open(GENERATED_FILE, encoding="utf-8") as file:
+            data = json.load(file)
+    except (OSError, ValueError):
+        return None
+    if not isinstance(data, dict) or not isinstance(data.get("size"), int):
+        return None
+    for label in ("Cross", "X"):
+        if not is_square(data.get(label), data["size"]) or not is_number_matrix(data[label]):
+            return None
+    return data
+
 def run_performance():
-    """크기별로 mac(2차원)·mac_flat(1차원) 평균 시간을 재고 표 2개로 출력한다."""
+    """크기별로 mac(2차원)·mac_flat(1차원) 평균 시간을 재고 표 2개로 출력한다. generated.json이 있으면 그 크기도 잰다."""
+    generated = load_generated()
+    sizes = list(PERF_SIZES)
+    if generated is not None and generated["size"] not in sizes:
+        sizes.append(generated["size"])
     results = []
     compare = []
-    for n in PERF_SIZES:
-        matrix = generate_patterns(n)["Cross"]
+    for n in sizes:
+        if generated is not None and generated["size"] == n:
+            matrix = generated["Cross"]
+        else:
+            matrix = generate_patterns(n)["Cross"]
         flat = flatten(matrix)
         ms_2d = measure_ms(matrix, matrix)
         ms_1d = measure_ms(flat, flat, mac_flat)
@@ -315,12 +348,15 @@ def run_performance():
         compare.append((n, ms_2d, ms_1d))
     section(f"[3] 성능 분석 (평균/{REPEAT}회)")
     print_performance(results)
+    if generated is not None:
+        n = generated["size"]
+        print(f"* {n}×{n}: {GENERATED_FILE}(모드 3에서 생성한 패턴)으로 측정")
     print_compare(compare)
 
 PRINT_LIMIT = 25
 
 def run_generator_mode():
-    """모드 3: 크기 N을 입력받아 N×N Cross·X 패턴을 생성해 출력한다."""
+    """모드 3: 크기 N을 입력받아 N×N Cross·X 패턴을 생성해 출력하고 generated.json에 저장한다."""
     n = read_size()
     patterns = generate_patterns(n)
     section(f"패턴 생성 ({n}×{n})")
@@ -330,6 +366,9 @@ def run_generator_mode():
         print_matrix("X 패턴", patterns["X"])
     else:
         print(f"Cross·X 패턴 생성 완료 (N이 {PRINT_LIMIT}보다 커서 배열 출력 생략)")
+    save_generated(n, patterns)
+    print()
+    print(f"{GENERATED_FILE}에 저장했습니다. 모드 1(N=3일 때)과 모드 2 성능 분석에서 사용합니다.")
 
 def print_compare(compare):
     """(크기 n, 2차원 ms, 1차원 ms) 목록으로 최적화 전/후 비교 표를 출력한다."""
