@@ -96,6 +96,14 @@ def read_choice(prompt, choices):
             return value
         print(f"{' 또는 '.join(choices)}를 입력하세요.")
 
+def read_size():
+    """패턴 생성기 크기 N(3 이상의 홀수)을 입력받는다."""
+    while True:
+        text = input("크기 N (3 이상의 홀수): ").strip()
+        if text.isdigit() and int(text) >= 3 and int(text) % 2 == 1:
+            return int(text)
+        print("크기 오류: 3 이상의 홀수를 입력하세요. (가운데 칸이 있어야 십자가·X를 만들 수 있음)")
+
 def read_shape():
     """생성할 패턴 모양을 입력받아 표준 라벨(Cross 또는 X)로 돌려준다."""
     while True:
@@ -117,7 +125,7 @@ def run_user_mode():
     method = read_choice("패턴 입력 방식 (1: 직접 입력, 2: 패턴 생성기): ", ["1", "2"])
     if method == "2":
         shape = read_shape()
-        pattern = make_cross(3) if shape == "Cross" else make_x(3)
+        pattern = generate_patterns(3)[shape]
         print(f"패턴 생성기: {shape} (3×3)")
     else:
         pattern = read_matrix("패턴", 3)
@@ -290,12 +298,16 @@ def make_x(n):
         matrix.append(row)
     return matrix
 
+def generate_patterns(n):
+    """크기 n의 Cross·X 패턴을 생성해 표준 라벨을 키로 돌려준다. 모드 1·모드 3·성능 분석이 함께 쓴다."""
+    return {"Cross": make_cross(n), "X": make_x(n)}
+
 def run_performance():
     """크기별로 mac(2차원)·mac_flat(1차원) 평균 시간을 재고 표 2개로 출력한다."""
     results = []
     compare = []
     for n in PERF_SIZES:
-        matrix = make_cross(n)
+        matrix = generate_patterns(n)["Cross"]
         flat = flatten(matrix)
         ms_2d = measure_ms(matrix, matrix)
         ms_1d = measure_ms(flat, flat, mac_flat)
@@ -304,6 +316,26 @@ def run_performance():
     section(f"[3] 성능 분석 (평균/{REPEAT}회)")
     print_performance(results)
     print_compare(compare)
+
+PRINT_LIMIT = 25
+
+def run_generator_mode():
+    """모드 3: 크기 N을 입력받아 N×N Cross·X 패턴을 생성하고, 생성한 패턴으로 성능 분석을 출력한다."""
+    n = read_size()
+    patterns = generate_patterns(n)
+    cross = patterns["Cross"]
+    x = patterns["X"]
+    section(f"[1] 패턴 생성 ({n}×{n})")
+    if n <= PRINT_LIMIT:
+        print_matrix("Cross 패턴", cross)
+        print()
+        print_matrix("X 패턴", x)
+    else:
+        print(f"Cross·X 패턴 생성 완료 (N이 {PRINT_LIMIT}보다 커서 배열 출력 생략)")
+
+    section(f"[2] 성능 분석 (평균/{REPEAT}회)")
+    print("입력: 생성한 Cross 패턴 × X 패턴")
+    print_performance([(n, measure_ms(cross, x))])
 
 def print_compare(compare):
     """(크기 n, 2차원 ms, 1차원 ms) 목록으로 최적화 전/후 비교 표를 출력한다."""
@@ -339,6 +371,7 @@ def main():
     print("[모드 선택]")
     print("1. 사용자 입력 (3x3)")
     print("2. data.json 분석")
+    print("3. 패턴 생성기 (N×N)")
     while True:
         choice = input("선택: ").strip()
         if choice == "1":
@@ -347,7 +380,10 @@ def main():
         if choice == "2":
             run_json_mode()
             break
-        print("1 또는 2를 입력하세요.")
+        if choice == "3":
+            run_generator_mode()
+            break
+        print("1, 2 또는 3을 입력하세요.")
 
 
 if __name__ == "__main__":
